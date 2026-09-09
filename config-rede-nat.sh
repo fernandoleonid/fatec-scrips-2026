@@ -17,16 +17,6 @@ if [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
-echo "==> Interfaces detectadas no sistema:"
-ip -brief link show
-
-for ifc in "$IF_WAN" "$IF_LAN"; do
-    if ! ip link show "$ifc" >/dev/null 2>&1; then
-        echo "ERRO: interface '$ifc' não existe. Ajuste IF_WAN/IF_LAN no script." >&2
-        exit 1
-    fi
-done
-
 
 # 1. /etc/network/interfaces (configuração interfaces)
 
