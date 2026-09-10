@@ -84,6 +84,7 @@ echo "==> Validando configuração DHCP..."
 dhcpd -t -cf "$DHCP_CONF"
 echo "==> Habilitando e reiniciando servidor DHCP..."
 systemctl enable --now isc-dhcp-server
+systemctl restart isc-dhcp-server
 
 
 # Resumo
