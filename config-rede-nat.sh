@@ -6,8 +6,6 @@ IF_WAN="enp0s3"
 IF_LAN="enp0s8"
 LAN_IP="192.168.0.1"
 LAN_NETMASK="255.255.255.0"
-DNS1="8.8.8.8"
-DNS2="8.8.4.4"
 
 
 # 0. Checagem de root
@@ -18,11 +16,20 @@ if [[ $EUID -ne 0 ]]; then
 fi
 
 
-# 1. /etc/network/interfaces (configuração interfaces)
+# 1. Instalando pacotes antes de reiniciar a rede
+
+echo "==> Atualizando lista de pacotes..."
+apt-get update -y
+echo "==> Instalando dependências de rede..."
+apt-get install -y iproute2 ifupdown iptables iptables-persistent dhcpcd-base
+
+
+# 2. /etc/network/interfaces (configuração interfaces)
 
 IFACES_FILE="/etc/network/interfaces"
-BACKUP_FILE="/etc/network/interfaces.bak.$(date +%Y%m%d%H%M%S)"
+BACKUP_FILE="/etc/network/interfaces.bkp"
 
+echo "==> Criando backup em $BACKUP_FILE..."
 cp "$IFACES_FILE" "$BACKUP_FILE"
 
 echo "==> Escrevendo $IFACES_FILE..."
@@ -43,27 +50,10 @@ iface ${IF_LAN} inet static
     netmask ${LAN_NETMASK}
 EOF
 
-# 2. Subir as interfaces
+# 3. Subir as interfaces
 
-systemctl restart networking.service 
-
-# 3. DNS (Google) — fixo em /etc/resolv.conf
-
-# chattr -i /etc/resolv.conf 2>/dev/null || true
-cat > /etc/resolv.conf <<EOF
-nameserver ${DNS1}
-nameserver ${DNS2}
-EOF
-# Protege contra sobrescrita por DHCP/resolvconf. Remova com:
-#   chattr -i /etc/resolv.conf
-# chattr +i /etc/resolv.conf 2>/dev/null || echo "    (chattr indisponível, resolv.conf não foi travado)"
-
-# 4. Instalando pacotes
-
-apt-get update -y
-apt-get install -y iproute2 ifupdown iptables iptables-persistent dhcpcd-base
-
-# 5. Habilitar IP forwarding (internet)
+echo "==> Reiniciando serviço de rede..."
+systemctl restart networking.service
 
 echo "==> Habilitando IP forwarding..."
 sed -i '/^net.ipv4.ip_forward/d' /etc/sysctl.conf
@@ -73,9 +63,11 @@ sysctl -p
 
 # 6. NAT / compartilhamento via iptables
 
-les -F
+echo "==> Limpando regras anteriores do iptables..."
+iptables -F
 iptables -t nat -F
 
+echo "==> Configurando NAT e encaminhamento de pacotes..."
 iptables -t nat -A POSTROUTING -o "$IF_WAN" -j MASQUERADE
 iptables -A FORWARD -i "$IF_WAN" -o "$IF_LAN" -m state --state RELATED,ESTABLISHED -j ACCEPT
 iptables -A FORWARD -i "$IF_LAN" -o "$IF_WAN" -j ACCEPT
@@ -83,15 +75,22 @@ iptables -A FORWARD -i "$IF_LAN" -o "$IF_WAN" -j ACCEPT
 
 # 7. Persistir regras do iptables
 
+echo "==> Salvando regras do iptables..."
 mkdir -p /etc/iptables
 iptables-save > /etc/iptables/rules.v4
+echo "==> Habilitando persistência das regras..."
 systemctl enable netfilter-persistent >/dev/null 2>&1 || true
 
 # Resumo
 
 echo ""
 echo "==> Configuração concluída."
-echo "    WAN (${IF_WAN}): $(ip -4 addr show "$IF_WAN" | grep -oP '(?<=inet\s)\d+(\.\d+){3}' || echo 'sem IP ainda')"
+echo "    WAN (${IF_WAN}): $(ip a | grep "$IF_WAN" | grep "inet " | cut -d" " -f6)"
 echo "    LAN (${IF_LAN}): ${LAN_IP}/${LAN_NETMASK}"
-echo "    DNS: ${DNS1}, ${DNS2} (resolv.conf travado com chattr +i)"
 echo "    IP forwarding: $(cat /proc/sys/net/ipv4/ip_forward)"
+echo ""
+echo "==> Configure manualmente cada cliente com:"
+echo "    IP: 192.168.0.2 a 192.168.0.254 (um IP diferente por cliente)"
+echo "    Máscara: ${LAN_NETMASK}"
+echo "    Gateway: ${LAN_IP}"
+echo "    DNS: use o DNS recebido pela WAN ou 8.8.8.8"
