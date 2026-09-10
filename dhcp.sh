@@ -8,6 +8,7 @@ NETMASK="255.255.255.0"
 NETWORK="192.168.0.0"
 BROADCAST="192.168.0.255"
 FIREWALL_IP="192.168.0.1"
+DNS_IP="8.8.8.8"
 RANGE_START="192.168.0.100"
 RANGE_END="192.168.0.200"
 
@@ -68,7 +69,7 @@ subnet ${NETWORK} netmask ${NETMASK} {
     option subnet-mask ${NETMASK};
     option broadcast-address ${BROADCAST};
     option routers ${FIREWALL_IP};
-    option domain-name-servers ${FIREWALL_IP};
+    option domain-name-servers ${DNS-IP};
 }
 EOF
 
