@@ -69,7 +69,7 @@ subnet ${NETWORK} netmask ${NETMASK} {
     option subnet-mask ${NETMASK};
     option broadcast-address ${BROADCAST};
     option routers ${FIREWALL_IP};
-    option domain-name-servers ${DNS-IP};
+    option domain-name-servers ${DNS_IP};
 }
 EOF
 
@@ -96,4 +96,4 @@ echo "    Interface: ${IF_LAN}"
 echo "    Servidor DHCP: ${SERVER_IP}/24"
 echo "    Escopo: ${RANGE_START} até ${RANGE_END}"
 echo "    Gateway entregue aos clientes: ${FIREWALL_IP}"
-echo "    DNS entregue aos clientes: ${FIREWALL_IP}"
+echo "    DNS entregue aos clientes: ${DNS_IP}"
